@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurateur Salle de Bain 3D</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <canvas id="scene"></canvas>
+    
+    <div id="controls" class="controls">
+        <div class="file-inputs">
+            <input type="file" id="textureInput" multiple accept="image/*" class="file-input">
+            <label for="textureInput" class="file-label">Texture</label>
+            
+            <input type="file" id="sinkModelInput" accept=".gltf,.glb,.obj,.fbx" data-type="sink" class="file-input">
+            <label for="sinkModelInput" class="file-label">Lavabo</label>
+            
+            <input type="file" id="mirrorModelInput" accept=".gltf,.glb,.obj,.fbx" data-type="mirror" class="file-input">
+            <label for="mirrorModelInput" class="file-label">Miroir</label>
+        </div>
+        <div class="action-buttons">
+            <button id="changeWall1" class="btn">Mur 1</button>
+            <button id="changeWall2" class="btn">Mur 2</button>
+            <button id="changeFloor" class="btn">Sol</button>
+            <button id="addSink" class="btn">+ Lavabo</button>
+            <button id="addMirror" class="btn">+ Miroir</button>
+            <button id="removeObject" class="btn">Supprimer</button>
+            <button id="printScene" class="btn">Imprimer</button>
+            <input type="range" id="lightIntensity" min="0" max="2" step="0.1" value="0.5" class="slider">
+            <button id="undoAction" class="btn">Annuler</button>
+            <button id="redoAction" class="btn">Rétablir</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
