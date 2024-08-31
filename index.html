@@ -26,6 +26,7 @@
             <button id="changeFloor" class="btn">Sol</button>
             <button id="addSink" class="btn">+ Lavabo</button>
             <button id="addMirror" class="btn">+ Miroir</button>
+            <button id="addBidet" class="btn">+ Bidet</button>
             <button id="removeObject" class="btn">Supprimer</button>
             <button id="printScene" class="btn">Imprimer</button>
             <input type="range" id="lightIntensity" min="0" max="2" step="0.1" value="0.5" class="slider">
@@ -34,12 +35,51 @@
         </div>
     </div>
 
+    <!-- Palette de textures pour les carrelages -->
+    <div id="texturePalette" class="texture-palette">
+        <h3 style="color: white;">Textures</h3>
+        <img src="/images/1SKIFER_BRUN_60X120.jpg" class="texture-option" alt="Texture 1">
+        <img src="/images/1Chalet_Cervinia-honey_20_122cm.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/CORE_DECOR_COLD_60X60.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/1Platinum-Beige-120x260cm.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/1VESTIGE260X120_VESTIGE_PULIDO.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/ANTONELLA_GOLD_60X120.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/BUCAREST_POLISHED_60X120cm.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/ARAN-GREY-POLISHED_60x120cm.jpg" class="texture-option" alt="Texture 2">
+        <img src="/images/1playwood-Cream-20x120cm.jpg" class="texture-option" alt="Texture 2">
+    
+    </div>
+
+    <!-- Palette de modèles pour les lavabos -->
+    <div id="sinkPalette" class="model-palette">
+        <h3>Lavabos</h3>
+        <img src="/images/LAVABO.glb" class="model-option" data-type="sink" alt="Lavabo 1">
+        
+    </div>
+
+    <!-- Palette de modèles pour les bidets -->
+    <div id="bidetPalette" class="model-palette">
+        <h3>Bidets</h3>
+        <img src="/images/bidet.glb" class="model-option" data-type="bidet" alt="Bidet 1">
+        
+    </div>
+
+    <!-- Palette de modèles pour les miroirs -->
+    <div id="mirrorPalette" class="model-palette">
+        <h3>Miroirs</h3>
+        <img src="/images/miroir.glb" class="model-option" data-type="mirror" alt="Miroir 1">
+        
+    </div>
+
+    <!-- Scripts Three.js et ses modules -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+
+    <!-- Script principal -->
     <script src="script.js"></script>
 </body>
 </html>

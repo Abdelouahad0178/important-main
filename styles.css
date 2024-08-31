@@ -55,6 +55,23 @@ canvas {
     width: 150px;
 }
 
+.texture-palette {
+    position: fixed;
+    right: 10px;
+    top: 50px;
+    width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.texture-option {
+    width: 100%;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .controls {

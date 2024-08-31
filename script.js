@@ -2,6 +2,7 @@ let scene, camera, renderer, controls, transformControls;
 let walls = [], floor;
 let objects = [];
 let selectedObject = null;
+let selectedWall = null;
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let loadedTextures = {};
@@ -10,8 +11,17 @@ let objLoader = new THREE.OBJLoader();
 let fbxLoader = new THREE.FBXLoader();
 let sinkModel = null;
 let mirrorModel = null;
+let bidetModel = null;
 let actionHistory = [];
 let redoStack = [];
+let selectedTexture = null;
+
+// Variable pour gérer la rotation de la texture
+let textureRotationAngle = 0;
+
+// Pour détecter les triple-clics
+let clickCount = 0;
+let clickTimer;
 
 function init() {
     scene = new THREE.Scene();
@@ -48,11 +58,9 @@ function init() {
     directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
 
-    const axesHelper = new THREE.AxesHelper(5);
-    scene.add(axesHelper);
-
+    // Gestion des clics et double-clics
+    renderer.domElement.addEventListener('click', onClick, false);
     renderer.domElement.addEventListener('dblclick', onDoubleClick, false);
-    window.addEventListener('keydown', onKeyDown, false);
     window.addEventListener('resize', onWindowResize, false);
 
     animate();
@@ -78,6 +86,7 @@ function createWalls() {
         }
 
         scene.add(walls[i]);
+        objects.push(walls[i]);  // Ajouter les murs aux objets cliquables
     }
 }
 
@@ -87,23 +96,145 @@ function createFloor() {
     floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
+    objects.push(floor);  // Ajouter le sol aux objets cliquables
 }
 
-function handleTextureFiles(event) {
-    const files = event.target.files;
-    const reader = new FileReader();
+function applySelectedTexture() {
+    if (selectedWall && selectedTexture) {
+        selectedTexture.wrapS = THREE.RepeatWrapping;
+        selectedTexture.wrapT = THREE.RepeatWrapping;
+        selectedTexture.center.set(0.5, 0.5); // Centrer la texture pour la rotation
 
-    reader.onload = function(e) {
-        const texture = new THREE.TextureLoader().load(e.target.result, function(tex) {
-            loadedTextures['userTexture'] = tex;
-            console.log('Texture chargée avec succès');
-        }, undefined, function(error) {
-            console.error('Erreur lors du chargement de la texture :', error);
+        // Définir l'épaisseur des joints
+        let groutThickness = 0.25; // Augmenter cette valeur pour des joints plus épais
+
+        // Ajuster les proportions pour éviter la déformation et inclure les joints
+        const aspectRatio = selectedTexture.image.width / selectedTexture.image.height;
+        let repeatX, repeatY;
+
+        // Calcul des répétitions en fonction du type de surface
+        if (selectedWall === floor) {
+            repeatX = (5 - groutThickness) / aspectRatio;
+            repeatY = 5 - groutThickness;
+        } else {
+            repeatX = (selectedWall.geometry.parameters.width - groutThickness) / aspectRatio;
+            repeatY = selectedWall.geometry.parameters.height - groutThickness;
+        }
+
+        // Appliquer l'effet des joints avec repeat et offset
+        selectedTexture.repeat.set(repeatX, repeatY);
+        selectedTexture.offset.set(groutThickness / (2 * repeatX), groutThickness / (2 * repeatY));
+
+        // Définir la couleur blanche pour les joints
+        selectedWall.material.map = selectedTexture;
+        selectedWall.material.color.set(0xffffff); // Couleur blanche pour les joints
+        selectedWall.material.needsUpdate = true;
+        console.log('Texture appliquée avec joints épais blancs autour de chaque pièce de carrelage.');
+    } else {
+        console.error('Veuillez sélectionner un mur ou le sol, puis une texture.');
+    }
+}
+
+// Fonction pour ajuster la rotation de la texture lors d'un triple-clic
+function adjustTextureRotation() {
+    textureRotationAngle += Math.PI / 2; // Incrément de 90 degrés (π/2 radians)
+    if (textureRotationAngle >= 2 * Math.PI) {
+        textureRotationAngle = 0; // Réinitialiser après un tour complet
+    }
+    selectedTexture.rotation = textureRotationAngle; // Appliquer la rotation
+    selectedWall.material.needsUpdate = true;
+    console.log('Rotation de la texture ajustée à', textureRotationAngle);
+}
+
+function handleTripleClick() {
+    clickCount++;
+    if (clickCount === 3) {
+        adjustTextureRotation();
+        clickCount = 0; // Réinitialiser le compteur après le triple-clic
+    }
+
+    // Réinitialiser le compteur après un délai si un triple-clic n'est pas détecté
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {
+        clickCount = 0;
+    }, 500); // Délai de 500ms pour détecter le triple-clic
+}
+
+// Sélectionner une texture dans la palette
+document.querySelectorAll('.texture-option').forEach((img) => {
+    img.addEventListener('click', () => {
+        const textureLoader = new THREE.TextureLoader();
+        selectedTexture = textureLoader.load(img.src, () => {
+            console.log('Texture chargée :', img.src);
+            applySelectedTexture();
         });
-    };
+    });
+});
 
-    for (let i = 0; i < files.length; i++) {
-        reader.readAsDataURL(files[i]);
+function selectWall(wall) {
+    selectedWall = wall;
+    console.log('Élément sélectionné pour la texture :', wall);
+}
+
+function onClick(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects([...walls, floor], true); // Vérifie les murs et le sol
+
+    if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        if (walls.includes(clickedObject) || clickedObject === floor) {
+            selectWall(clickedObject);
+            handleTripleClick(); // Gérer le triple-clic pour ajuster la rotation
+        }
+    }
+}
+
+function onDoubleClick(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(objects, true);
+
+    if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        let parentObject = clickedObject;
+
+        // Parcourir les parents pour trouver l'objet sélectionnable
+        while (parentObject && !parentObject.userData.isMovable) {
+            parentObject = parentObject.parent;
+        }
+
+        if (parentObject && parentObject.userData.isMovable) {
+            selectObject(parentObject);
+        }
+    } else {
+        selectObject(null);
+    }
+}
+
+function selectObject(object) {
+    if (selectedObject) {
+        transformControls.detach(selectedObject);
+    }
+    selectedObject = object;
+    if (object && object.userData.isMovable) {
+        transformControls.attach(object);
+        console.log("Objet sélectionné :", selectedObject);
+    }
+}
+
+function removeObject() {
+    if (selectedObject && selectedObject.userData.isMovable) {
+        saveAction('remove', selectedObject);
+        scene.remove(selectedObject);
+        objects = objects.filter(obj => obj !== selectedObject);
+        transformControls.detach();
+        selectedObject = null;
+        console.log("Objet supprimé. Objets restants :", objects);
     }
 }
 
@@ -143,6 +274,8 @@ function handleModelLoad(model, type) {
         sinkModel = model;
     } else if (type === 'mirror') {
         mirrorModel = model;
+    } else if (type === 'bidet') {
+        bidetModel = model;
     }
 
     console.log(`Modèle ${type} chargé avec succès`);
@@ -162,88 +295,14 @@ function centerModel(model) {
     model.position.z = -2.4;
 }
 
-function applyTextureToObject(object, texture) {
-    if (texture) {
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(object === floor ? 3 : 2, object === floor ? 3 : 2);
-
-        object.material.map = texture;
-        object.material.needsUpdate = true;
-    } else {
-        console.error('La texture est indéfinie. Assurez-vous qu\'elle est correctement chargée.');
-    }
-}
-
-function addObject(type) {
-    let newObject;
-    if (type === 'sink' && sinkModel) {
-        newObject = sinkModel.clone();
-    } else if (type === 'mirror' && mirrorModel) {
-        newObject = mirrorModel.clone();
-    } else {
-        console.error(`Modèle ${type} non chargé. Veuillez d'abord importer un modèle.`);
-        return;
-    }
-    
-    newObject.userData.type = type;
-    newObject.userData.isMovable = true;
-    scene.add(newObject);
-    objects.push(newObject);
-    selectObject(newObject);
-    saveAction('add', newObject);
-    console.log("Objet ajouté à la scène :", newObject);
-}
-
-function selectObject(object) {
-    if (selectedObject) {
-        transformControls.detach(selectedObject);
-    }
-    selectedObject = object;
-    if (object && object.userData.isMovable) {
-        transformControls.attach(object);
-    }
-    console.log("Objet sélectionné :", selectedObject);
-}
-
-function removeObject() {
-    if (selectedObject && selectedObject.userData.isMovable) {
-        saveAction('remove', selectedObject);
-        scene.remove(selectedObject);
-        objects = objects.filter(obj => obj !== selectedObject);
-        transformControls.detach();
-        selectedObject = null;
-        console.log("Objet supprimé. Objets restants :", objects);
-    }
-}
-
-function onDoubleClick(event) {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(objects, true);
-
-    if (intersects.length > 0) {
-        const clickedObject = intersects[0].object;
-        let parentObject = clickedObject;
-        
-        while (parentObject && !parentObject.userData.isMovable) {
-            parentObject = parentObject.parent;
-        }
-        
-        if (parentObject && parentObject.userData.isMovable) {
-            selectObject(parentObject);
-        }
-    } else {
-        selectObject(null);
-    }
-}
-
-function onKeyDown(event) {
-    if (event.key === 'Delete' && selectedObject && selectedObject.userData.isMovable) {
-        removeObject();
-    }
+function addObject(model, type) {
+    model.userData.type = type;
+    model.userData.isMovable = true;
+    scene.add(model);
+    objects.push(model);
+    selectObject(model);
+    saveAction('add', model);
+    console.log("Objet ajouté à la scène :", model);
 }
 
 function onWindowResize() {
@@ -263,153 +322,30 @@ function saveAction(action, object) {
     redoStack = [];
 }
 
-function undoAction() {
-    if (actionHistory.length === 0) return;
-    const lastAction = actionHistory.pop();
-    redoStack.push(lastAction);
-
-    if (lastAction.action === 'add') {
-        scene.remove(lastAction.object);
-    } else if (lastAction.action === 'remove') {
-        scene.add(lastAction.object);
-    }
-}
-
-function redoAction() {
-    if (redoStack.length === 0) return;
-    const lastRedo = redoStack.pop();
-    actionHistory.push(lastRedo);
-
-    if (lastRedo.action === 'add') {
-        scene.add(lastRedo.object);
-    } else if (lastRedo.action === 'remove') {
-        scene.remove(lastRedo.object);
-    }
-}
-
-function checkModelLoaded(type) {
-    if ((type === 'sink' && !sinkModel) || (type === 'mirror' && !mirrorModel)) {
-        alert(`Veuillez d'abord charger un modèle ${type} 3D.`);
-        return false;
-    }
-    return true;
-}
-
-function printScene() {
-    renderer.render(scene, camera);
-    const imgData = renderer.domElement.toDataURL('image/png');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        let isBlank = true;
-        for (let i = 0; i < data.length; i += 4) {
-            if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255) {
-                isBlank = false;
-                break;
-            }
-        }
-
-        if (isBlank) {
-            console.error("L'image capturée est entièrement blanche. Vérifiez le rendu de la scène.");
-            alert("Erreur : L'image capturée est vide. Impossible d'imprimer.");
-            return;
-        }
-
-        const date = new Date().toLocaleString();
-        const printWindow = window.open('', 'Print', 'height=600,width=800');
-
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>Impression de la Scène 3D</title>
-                <style>
-                    @media print {
-                        @page {
-                            size: auto;
-                            margin: 0mm;
-                        }
-                    }
-                    body {
-                        margin: 0;
-                        padding: 0;
-                        font-family: Arial, sans-serif;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                    }
-                    .container {
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        max-width: 100%;
-                        padding: 20px;
-                    }
-                    img {
-                        max-width: 100%;
-                        height: auto;
-                        margin-bottom: 20px;
-                    }
-                    .info {
-                        text-align: center;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <img src="${imgData}" alt="Scène 3D"/>
-                    <div class="info">
-                        <p>Date d'impression : ${date}</p>
-                        <p>Dimensions de la pièce : 5m x 5m x 3m</p>
-                        <p>Objets dans la scène : ${objects.length}</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `);
-
-        printWindow.document.close();
-        printWindow.focus();
-
-        printWindow.onload = function() {
-            printWindow.print();
-            printWindow.close();
-        };
-    };
-    img.src = imgData;
-}
-
-// Event Listeners
-document.getElementById('textureInput').addEventListener('change', handleTextureFiles, false);
+// Gestion des interactions avec les modèles chargés
 document.getElementById('sinkModelInput').addEventListener('change', event => handleModelFile(event), false);
-document.getElementById('mirrorModelInput').addEventListener('change', event => handleModelFile(event), false);
-document.getElementById('changeWall1').addEventListener('click', () => {
-    applyTextureToObject(walls[0], loadedTextures['userTexture']);
-});
-document.getElementById('changeWall2').addEventListener('click', () => {
-    applyTextureToObject(walls[1], loadedTextures['userTexture']);
-});
-document.getElementById('changeFloor').addEventListener('click', () => {
-    applyTextureToObject(floor, loadedTextures['userTexture']);
-});
 document.getElementById('addSink').addEventListener('click', () => {
-    if (checkModelLoaded('sink')) addObject('sink');
+    if (sinkModel) {
+        addObject(sinkModel.clone(), 'sink');
+    } else {
+        alert('Veuillez d\'abord charger un modèle de lavabo.');
+    }
 });
 document.getElementById('addMirror').addEventListener('click', () => {
-    if (checkModelLoaded('mirror')) addObject('mirror');
+    if (mirrorModel) {
+        addObject(mirrorModel.clone(), 'mirror');
+    } else {
+        alert('Veuillez d\'abord charger un modèle de miroir.');
+    }
+});
+document.getElementById('addBidet').addEventListener('click', () => {
+    if (bidetModel) {
+        addObject(bidetModel.clone(), 'bidet');
+    } else {
+        alert('Veuillez d\'abord charger un modèle de bidet.');
+    }
 });
 document.getElementById('removeObject').addEventListener('click', removeObject);
-document.getElementById('printScene').addEventListener('click', printScene);
-document.getElementById('undoAction').addEventListener('click', undoAction);
-document.getElementById('redoAction').addEventListener('click', redoAction);
 
-// Initialisation
+// Initialisation de la scène
 init();
